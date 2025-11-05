@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Odd Roll Showdown 🎲</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="screen active">
+        <div class="login-container">
+            <h1>🎲 Odd Roll Showdown</h1>
+            <p class="subtitle">A Strategic Multiplayer Dice Game</p>
+
+            <div class="input-group">
+                <label for="playerName">Your Name</label>
+                <input type="text" id="playerName" placeholder="Enter your name" maxlength="20" />
+            </div>
+
+            <div id="joinMode">
+                <div class="input-group">
+                    <label for="roomKey">Room Key</label>
+                    <input type="text" id="roomKey" placeholder="Enter room key" maxlength="10" />
+                </div>
+
+                <button id="joinButton" class="btn-primary">Join Existing Room</button>
+                <p class="info-text">OR</p>
+                <button id="createRoomButton" class="btn-secondary">Create New Room</button>
+            </div>
+
+            <div id="createMode" style="display: none;">
+                <div class="input-group">
+                    <label for="newRoomKey">Room Key (Create)</label>
+                    <input type="text" id="newRoomKey" placeholder="Enter unique room key" maxlength="10" />
+                </div>
+
+                <div class="input-group">
+                    <label for="maxPlayers">Max Players</label>
+                    <input type="number" id="maxPlayers" value="4" min="2" max="8" />
+                </div>
+
+                <button id="confirmCreateButton" class="btn-primary">Create Room</button>
+                <button id="backButton" class="btn-secondary">Back</button>
+            </div>
+
+            <div class="game-rules">
+                <h3>Game Rules:</h3>
+                <ul>
+                    <li>Die has only odd numbers: 1️⃣ 3️⃣ 5️⃣ 7️⃣ 9️⃣</li>
+                    <li>1st roll &rarr; Face appears</li>
+                    <li>2nd roll &rarr; Body part appears</li>
+                    <li>3rd roll &rarr; Gun with 1 bullet</li>
+                    <li>4th roll &rarr; Gun with 2 bullets</li>
+                    <li>5th roll &rarr; Gun with 3 bullets (can SHOOT!)</li>
+                    <li>Shooting disables target's die number box</li>
+                    <li>Last player standing wins!</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lobby Screen -->
+    <div id="lobbyScreen" class="screen">
+        <div class="lobby-container">
+            <h1>🎲 Game Lobby</h1>
+            <div class="room-info">
+                <p>Room: <span id="roomKeyDisplay"></span></p>
+            </div>
+
+            <div class="players-waiting">
+                <h3>Players in Lobby:</h3>
+                <div id="lobbyPlayers"></div>
+            </div>
+
+            <button id="startGameButton" class="btn-primary">Start Game</button>
+            <p class="info-text">Waiting for players... (Minimum 2 required)</p>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="gameScreen" class="screen">
+        <div class="game-header">
+            <h1>🎲 Odd Roll Showdown</h1>
+            <div class="game-info">
+                <span id="currentTurnDisplay">Waiting...</span>
+            </div>
+        </div>
+
+        <div class="game-container">
+            <!-- Players List -->
+            <div class="players-panel">
+                <h3>Players</h3>
+                <div id="playersListContainer"></div>
+            </div>
+
+            <!-- Main Game Area -->
+            <div class="game-area">
+                <!-- Dice Rolling Section -->
+                <div class="dice-section">
+                    <div id="diceDisplay" class="dice">?</div>
+                    <button id="rollDiceButton" class="btn-roll" disabled>Roll Die 🎲</button>
+                    <div id="rollResult" class="roll-result"></div>
+                </div>
+
+                <!-- Player Boxes Grid -->
+                <div class="boxes-container">
+                    <h3>Your Boxes</h3>
+                    <div class="boxes-grid">
+                        <div class="box" data-number="1">
+                            <div class="box-header">1️⃣</div>
+                            <div class="box-content" id="box-1"></div>
+                        </div>
+                        <div class="box" data-number="3">
+                            <div class="box-header">3️⃣</div>
+                            <div class="box-content" id="box-3"></div>
+                        </div>
+                        <div class="box" data-number="5">
+                            <div class="box-header">5️⃣</div>
+                            <div class="box-content" id="box-5"></div>
+                        </div>
+                        <div class="box" data-number="7">
+                            <div class="box-header">7️⃣</div>
+                            <div class="box-content" id="box-7"></div>
+                        </div>
+                        <div class="box" data-number="9">
+                            <div class="box-header">9️⃣</div>
+                            <div class="box-content" id="box-9"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button id="shootButton" class="btn-shoot" disabled>🔫 Shoot Player</button>
+                    <button id="nextTurnButton" class="btn-next" disabled>Next Turn ➡️</button>
+                </div>
+            </div>
+
+            <!-- Game Log -->
+            <div class="log-panel">
+                <h3>Game Log</h3>
+                <div id="gameLog"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shoot Modal -->
+    <div id="shootModal" class="modal">
+        <div class="modal-content">
+            <h2>🔫 Choose Target</h2>
+            <div id="targetPlayersContainer"></div>
+            <div id="disableNumberContainer" style="display:none;">
+                <h3>Select Number to Disable:</h3>
+                <div class="number-buttons">
+                    <button class="btn-number" data-num="1">1️⃣</button>
+                    <button class="btn-number" data-num="3">3️⃣</button>
+                    <button class="btn-number" data-num="5">5️⃣</button>
+                    <button class="btn-number" data-num="7">7️⃣</button>
+                    <button class="btn-number" data-num="9">9️⃣</button>
+                </div>
+            </div>
+            <button id="closeShootModal" class="btn-secondary">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Winner Modal -->
+    <div id="winnerModal" class="modal">
+        <div class="modal-content winner">
+            <h1>🏆 Game Over!</h1>
+            <h2 id="winnerName"></h2>
+            <p>Congratulations!</p>
+            <button id="newGameButton" class="btn-primary">New Game</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
