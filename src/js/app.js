@@ -1,18 +1,20 @@
-// Ultimate Relay List for 2026 - High uptime peers
+// 2026 Elite Relay Cluster - Using multiple protocols for maximum compatibility
 const gunRelays = [
     'https://gun-manhattan.herokuapp.com/gun',
-    'https://gun-relay.phi.is/gun',
     'https://peer.wall.org/gun',
     'https://gun.p2p.report/gun',
+    'https://gun-us.herokuapp.com/gun',
+    'https://gun-eu.herokuapp.com/gun',
+    'https://gun-relay.phi.is/gun',
     'https://gun-server.marda.io/gun',
     'https://gunjs.herokuapp.com/gun'
 ];
-const APP_NAMESPACE = 'oddroll_v2026_pro'; 
+const APP_NAMESPACE = 'odd_roll_pro_final_v1'; 
 
 const gun = Gun({
     peers: gunRelays,
-    localStorage: true,
-    radisk: true,
+    localStorage: false, // Prevents tab conflicts during development
+    radisk: false,
     retry: 500
 });
 
@@ -29,12 +31,25 @@ function netLog(msg, type = 'info') {
     };
     
     const entry = document.createElement('div');
-    entry.className = 'log-line';
-    entry.style.color = colors[type];
-    entry.innerHTML = `<span class="log-time">${new Date().toLocaleTimeString()}</span> ${msg}`;
+    entry.style.color = colors[type] || '#fff';
+    entry.style.marginBottom = '4px';
+    entry.innerHTML = `<span style="opacity:0.4;font-size:10px;">[${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}]</span> ${msg}`;
     log.insertBefore(entry, log.firstChild);
-    if (log.childNodes.length > 10) log.removeChild(log.lastChild);
+    if (log.childNodes.length > 15) log.removeChild(log.lastChild);
 }
+
+// Global Connection Watchdog
+let connectionAttempt = 0;
+const connectionCheck = setInterval(() => {
+    if (!gameState.connectedToPeers) {
+        connectionAttempt++;
+        if (connectionAttempt % 5 === 0) {
+            netLog(`🔄 Still searching for stable relay (Attempt ${connectionAttempt})...`, 'warn');
+        }
+    } else {
+        clearInterval(connectionCheck);
+    }
+}, 2000);
 
 let gameState = {
     playerId: Math.random().toString(36).substr(2, 9),
