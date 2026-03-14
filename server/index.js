@@ -1,9 +1,10 @@
 const express = require("express");
+const path = require("path");
 const app = express();
 const http = require("http").createServer(app);
 const io = require("socket.io")(http);
 
-app.use(express.static("public"));
+app.use(express.static(path.join(__dirname, "../src")));
 
 const gameRooms = new Map();
 const ODD_NUMBERS = [1, 3, 5, 7, 9];

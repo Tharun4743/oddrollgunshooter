@@ -1,6 +1,11 @@
 [build]
-  publish = "public"
-  command = "echo 'No build command needed'"
+  publish = "src"
+  command = "echo 'Static site, no build needed'"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
 
 [[headers]]
   for = "/*"

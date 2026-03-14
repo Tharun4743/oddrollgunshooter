@@ -2,10 +2,10 @@
   "name": "odd-roll-showdown",
   "version": "1.0.0",
   "description": "A multiplayer dice-based strategy game with odd numbers",
-  "main": "server.js",
+  "main": "server/index.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "node server/index.js",
+    "dev": "nodemon server/index.js"
   },
   "keywords": [
     "game",
