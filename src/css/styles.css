@@ -239,12 +239,26 @@ button:disabled {
 }
 
 .status-dot {
-    width: 12px;
-    height: 12px;
+    width: 15px;
+    height: 15px;
     border-radius: 50%;
-    background: #6b7280;
-    box-shadow: 0 0 10px rgba(0,0,0,0.5);
-    transition: background 0.3s;
+    background: #ef4444;
+    box-shadow: 0 0 15px rgba(0,0,0,0.5);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 2px solid rgba(255,255,255,0.2);
+}
+
+.global-status {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+
+.status-dot.active {
+    background: #10b981;
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.6);
+    transform: scale(1.1);
 }
 
 .game-header h1 {

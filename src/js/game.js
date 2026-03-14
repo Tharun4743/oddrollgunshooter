@@ -2,16 +2,18 @@ const gunRelays = [
     'https://gun-manhattan.herokuapp.com/gun',
     'https://gundb.herokuapp.com/gun',
     'https://gun-relay.phi.is/gun',
+    'https://peer.wall.org/gun',
     'https://gun-us.herokuapp.com/gun',
     'https://gun-eu.herokuapp.com/gun'
 ];
+// Use a clean namespace to avoid old data collisions
+const APP_NAMESPACE = 'oddroll_pro_v3'; 
+
 const gun = Gun({
     peers: gunRelays,
-    localStorage: false // Prevents stale data sync issues between tabs
+    localStorage: false,
+    retry: 1000 // Retry every second if connection drops
 });
-
-const ODD_NUMBERS = [1, 3, 5, 7, 9];
-const APP_NAMESPACE = 'oddroll_vFinal_SyncFix'; // New namespace for clean start
 
 let gameState = {
     playerId: Math.random().toString(36).substr(2, 9),
@@ -38,8 +40,13 @@ gun.on('hi', peer => {
 function updateConnectionStatus(connected) {
     const statusDot = document.getElementById('connectionStatus');
     if (statusDot) {
-        statusDot.style.background = connected ? '#10b981' : '#ef4444';
-        statusDot.title = connected ? 'Connected to Peers' : 'Disconnected';
+        if (connected) {
+            statusDot.classList.add('active');
+            statusDot.title = 'Connected to Peers';
+        } else {
+            statusDot.classList.remove('active');
+            statusDot.title = 'Disconnected from network';
+        }
     }
 }
 
@@ -153,6 +160,25 @@ function initGame(name, key, isCreator) {
             gameState.gameStarted = true;
             switchScreen('game');
             addLog('🎮 Game Started!', true);
+        }
+    });
+
+    // Listen for all players in the room
+    room.get('players').map().on((pData, pId) => {
+        if (!pData || !pData.id) return;
+        
+        // Cleanup locally if inactive (simple discovery)
+        updatePlayerInList(pData);
+
+        if (pId === gameState.playerId) {
+            gameState.myState = pData;
+            ODD_NUMBERS.forEach(num => {
+                playerRef.get('boxes').get(num.toString()).on(boxData => {
+                    if (!gameState.myState.boxes) gameState.myState.boxes = {};
+                    gameState.myState.boxes[num] = boxData;
+                    updateMyBoxes();
+                });
+            });
         }
     });
 
