@@ -63,8 +63,6 @@ const newGameButton = document.getElementById('newGameButton');
 
 // Initialize Peer
 function initPeerSignals(onReady) {
-    // We use the roomKey as the base for the Host ID
-    // Joiners will try to connect to the Host ID
     peer = new Peer(null, { debug: 1 });
 
     peer.on('open', (id) => {
@@ -89,7 +87,6 @@ function setupConnection(conn) {
     
     conn.on('open', () => {
         connections.push(conn);
-        // If I am host, send current lobby data
         if (gameState.isRoomCreator) {
             broadcastState();
         }
@@ -108,21 +105,33 @@ function setupConnection(conn) {
 function handleIncomingMessage(data, conn) {
     if (data.type === 'join') {
         netLog(`👤 Player Joined: ${data.name}`, 'success');
-        addPlayerToList({ id: data.id, name: data.name, joinedAt: Date.now(), isAlive: true, boxes: getDefaultBoxes() });
+        addPlayerToList({ id: data.id, name: data.name, joinedAt: Date.now(), isAlive: true, boxes: getDefaultBoxes(), mustShoot: false });
         broadcastState();
     } else if (data.type === 'sync_state') {
         gameState.players = data.players;
         gameState.currentTurnId = data.currentTurnId;
-        gameState.gameStarted = data.gameStarted;
-        if (gameState.gameStarted) {
+        
+        if (data.gameStarted && !gameState.gameStarted) {
+            gameState.gameStarted = true;
             switchScreen('game');
         }
+        
+        if (data.winner) {
+            showWinner(data.winner);
+        }
+
         updateLobbyPlayers(gameState.players);
         updatePlayersList(gameState.players);
         updateCurrentTurn();
         updateMyBoxes();
     } else if (data.type === 'action') {
         processRemoteAction(data);
+        // CRITICAL: Host relays actions to all other clients
+        if (gameState.isRoomCreator) {
+            connections.forEach(c => {
+                if (c !== conn) c.send(data);
+            });
+        }
     }
 }
 
@@ -132,12 +141,13 @@ function getDefaultBoxes() {
     return boxes;
 }
 
-function broadcastState() {
+function broadcastState(extraData = {}) {
     const stateUpdate = {
         type: 'sync_state',
         players: gameState.players,
         currentTurnId: gameState.currentTurnId,
-        gameStarted: gameState.gameStarted
+        gameStarted: gameState.gameStarted,
+        ...extraData
     };
     connections.forEach(conn => conn.send(stateUpdate));
 }
@@ -175,9 +185,7 @@ function createRoom() {
     gameState.roomKey = key;
     
     initPeerSignals(() => {
-        // As creator, I am the lobby server
-        // I register myself as the first player
-        const me = { id: gameState.playerId, name: name, joinedAt: Date.now(), isAlive: true, boxes: getDefaultBoxes() };
+        const me = { id: gameState.playerId, name: name, joinedAt: Date.now(), isAlive: true, boxes: getDefaultBoxes(), mustShoot: false };
         gameState.players = [me];
         gameState.myState = me;
         
@@ -186,9 +194,6 @@ function createRoom() {
         netLog(`Room [${key}] created. Waiting for peers...`, 'success');
         updateLobbyPlayers(gameState.players);
         
-        // We use a simplified discovery: Joiners must use the ID or a lookup
-        // For simplicity in this demo, we'll store the Host ID in a "hidden" Gun node or just rely on IDs
-        // Actually, to make it work PERFECTLY, we'll use a public 'signaler' room
         const signaler = new Peer(`oddroll-room-${key}`, { debug: 1 });
         signaler.on('open', () => netLog('🌐 Room broadcast live', 'success'));
         signaler.on('error', (err) => {
@@ -198,10 +203,9 @@ function createRoom() {
             }
         });
         signaler.on('connection', (conn) => {
-            // This is just a signaling connection to say "Connect to my REAL peer ID"
             conn.on('open', () => {
                 conn.send({ type: 'host_id', id: gameState.playerId });
-                setTimeout(() => signaler.destroy(), 1000); // Signal sent, close tracker
+                setTimeout(() => signaler.destroy(), 1000);
             });
         });
     });
@@ -248,6 +252,9 @@ function startGameAction() {
 
 function rollDiceAction() {
     if (gameState.currentTurnId !== gameState.playerId) return;
+    const myPlayer = gameState.players.find(p => p.id === gameState.playerId);
+    if (myPlayer.mustShoot) return alert("You MUST shoot first!");
+
     const rolledNumber = ODD_NUMBERS[Math.floor(Math.random() * ODD_NUMBERS.length)];
     diceDisplay.textContent = rolledNumber;
     diceDisplay.classList.add('rolling');
@@ -261,7 +268,13 @@ function rollDiceAction() {
 function processRoll(num) {
     const myPlayer = gameState.players.find(p => p.id === gameState.playerId);
     const box = myPlayer.boxes[num];
-    if (box.disabled) return addLog(`Box ${num} is disabled!`, true);
+    if (box.disabled) {
+        addLog(`Box ${num} is disabled!`, true);
+        broadcastAction({ type: 'roll', num, msg: `${gameState.playerName} rolled a disabled box ${num}`, by: gameState.playerId });
+        broadcastState();
+        nextTurnButton.disabled = false;
+        return;
+    }
 
     box.stage++;
     let msg = `${gameState.playerName} rolled ${num}: `;
@@ -309,6 +322,85 @@ function nextTurnAction() {
     broadcastState();
 }
 
+function showShootModal() {
+    targetPlayersContainer.innerHTML = '';
+    gameState.players.forEach(player => {
+        if (player.id !== gameState.playerId && player.isAlive) {
+            const div = document.createElement('div');
+            div.className = 'target-player';
+            div.textContent = player.name;
+            div.onclick = () => {
+                gameState.selectedTarget = player.id;
+                disableNumberContainer.style.display = 'block';
+                // Highlight selection
+                document.querySelectorAll('.target-player').forEach(el => el.style.border = 'none');
+                div.style.border = '2px solid var(--primary-color)';
+            };
+            targetPlayersContainer.appendChild(div);
+        }
+    });
+
+    document.querySelectorAll('.btn-number').forEach(btn => {
+        btn.onclick = () => performShoot(gameState.selectedTarget, btn.dataset.num);
+    });
+
+    shootModal.classList.add('active');
+}
+
+function performShoot(targetId, num) {
+    if (!targetId) return alert("Select a target first!");
+    
+    const myPlayer = gameState.players.find(p => p.id === gameState.playerId);
+    const targetPlayer = gameState.players.find(p => p.id === targetId);
+    
+    if (!targetPlayer) return;
+
+    // 1. Disable target's box
+    targetPlayer.boxes[num].disabled = true;
+    
+    // 2. Reset our status
+    myPlayer.mustShoot = false;
+    Object.values(myPlayer.boxes).forEach(b => {
+        if (b.bullets === 3) {
+            b.bullets = 0;
+            b.stage = 2; // Return to stage 2 (Full Body) after shooting
+        }
+    });
+
+    const msg = `${gameState.playerName} shot ${targetPlayer.name}'s box ${num}!`;
+    addLog(msg, true);
+    broadcastAction({ type: 'shot', msg, by: gameState.playerId });
+
+    // 3. Check if target is eliminated
+    const allDisabled = Object.values(targetPlayer.boxes).every(b => b.disabled);
+    if (allDisabled) {
+        targetPlayer.isAlive = false;
+        addLog(`💀 ${targetPlayer.name} HAS BEEN ELIMINATED!`, true);
+    }
+
+    // 4. Check for victory
+    const alives = gameState.players.filter(p => p.isAlive);
+    if (alives.length === 1) {
+        broadcastState({ winner: alives[0] });
+        showWinner(alives[0]);
+    } else {
+        broadcastState();
+    }
+
+    hideShootModal();
+    shootButton.disabled = true;
+}
+
+function showWinner(w) {
+    winnerName.textContent = `${w.name} Wins!`;
+    winnerModal.classList.add('active');
+}
+
+function hideShootModal() {
+    shootModal.classList.remove('active');
+    disableNumberContainer.style.display = 'none';
+}
+
 // UI Base Helpers
 function updateConnectionStatus(c) {
     const dot = document.getElementById('connectionStatus');
@@ -335,7 +427,9 @@ function updateLobbyPlayers(players) {
         div.textContent = `✓ ${p.name}`;
         lobbyPlayers.appendChild(div);
     });
-    if (players.length >= 2 && gameState.isRoomCreator) startGameButton.disabled = false;
+    if (players.length >= 2 && gameState.isRoomCreator) {
+        startGameButton.disabled = false;
+    }
 }
 
 function updatePlayersList(players) {
@@ -346,7 +440,10 @@ function updatePlayersList(players) {
         if (p.id === gameState.currentTurnId) div.classList.add('current-turn');
         if (!p.isAlive) div.classList.add('eliminated');
         let parts = 0;
-        Object.values(p.boxes).forEach(b => { if(b.stage === 1) parts+=1; if(b.stage >= 2) parts+=2; });
+        Object.values(p.boxes).forEach(b => { 
+            if(b.stage === 1) parts+=1; 
+            if(b.stage >= 2) parts+=2; 
+        });
         div.innerHTML = `<strong>${p.name}</strong><br>Health Parts: ${parts}`;
         playersListContainer.appendChild(div);
     });
@@ -356,6 +453,12 @@ function updateCurrentTurn() {
     const isMe = gameState.currentTurnId === gameState.playerId;
     currentTurnDisplay.textContent = isMe ? "🎲 YOUR TURN!" : "Waiting...";
     rollDiceButton.disabled = !isMe;
+    
+    // Auto-enable shoot if mustShoot is set
+    const me = gameState.players.find(p => p.id === gameState.playerId);
+    if (isMe && me && me.mustShoot) {
+        shootButton.disabled = false;
+    }
 }
 
 function updateMyBoxes() {
@@ -365,6 +468,8 @@ function updateMyBoxes() {
         const box = me.boxes[num];
         const boxElem = document.querySelector(`.box[data-number="${num}"]`);
         const contentElem = document.getElementById(`box-${num}`);
+        if (!boxElem || !contentElem) return;
+        
         if (box.disabled) {
             boxElem.classList.add('disabled');
             contentElem.innerHTML = '❌ DISABLED';
@@ -374,9 +479,5 @@ function updateMyBoxes() {
         }
     });
 }
-
-// Placeholder for remaining logic (Shooting involves same broadcast patterns)
-function showShootModal() { /* Simplified: All players in gameState.players can be targets */ }
-function hideShootModal() { shootModal.classList.remove('active'); }
 
 netLog('System Ready. Enter name to start.', 'info');
