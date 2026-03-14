@@ -158,7 +158,20 @@ function refresh() {
         const d = document.createElement('div');
         d.className = `player-item ${p.id === gameState.currentTurnId ? 'current-turn' : ''} ${!p.isAlive ? 'eliminated' : ''}`;
         let pts = 0; Object.values(p.boxes).forEach(b => { if(b.stage === 1) pts++; if(b.stage >= 2) pts+=2; });
-        d.innerHTML = `<strong>${p.name}</strong><br>Health: ${pts}/10`;
+        
+        let grid = `<div class="mini-boxes-grid">`;
+        ODD_NUMBERS.forEach(n => {
+            const b = p.boxes[n.toString()];
+            let cls = 'mini-box'; let icon = n;
+            if (b.disabled) { cls += ' disabled'; icon = '✖'; }
+            else if (b.bullets > 0) { cls += ' has-bullets'; icon = '🔫'; }
+            else if (b.stage === 1) { cls += ' stage-1'; }
+            else if (b.stage >= 2) { cls += ' stage-2'; }
+            grid += `<div class="${cls}" title="Box ${n}">${icon}</div>`;
+        });
+        grid += `</div>`;
+        
+        d.innerHTML = `<strong>${p.name}</strong><br>Health: ${pts}/10${grid}`;
         ui.playersList.appendChild(d);
     });
     const isMe = (gameState.currentTurnId === gameState.playerId);
