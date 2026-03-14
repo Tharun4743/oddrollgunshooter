@@ -3,27 +3,28 @@ const gunRelays = [
     'https://gun-relay.phi.is/gun',
     'https://gun-us.herokuapp.com/gun',
     'https://peer.wall.org/gun',
-    'https://dletta.cloud/gun'
+    'https://gun.p2p.report/gun',
+    'https://gun-server.marda.io/gun'
 ];
-const APP_NAMESPACE = 'oddroll_live_v2026'; 
+const APP_NAMESPACE = 'oddroll_global_sync_v5'; 
 
 const gun = Gun({
     peers: gunRelays,
-    localStorage: true, // Keep peers in memory between refreshes
+    localStorage: true,
     radisk: true
 });
 
 // Debug Logger for User UI
-function netLog(msg, color = '#6366f1') {
+function netLog(msg, color = '#a5b4fc') {
     const log = document.getElementById('networkLog');
     if (log) {
         const entry = document.createElement('div');
+        entry.className = 'log-line';
         entry.style.color = color;
-        entry.textContent = `> ${new Date().toLocaleTimeString()}: ${msg}`;
+        entry.innerHTML = `<span class="log-time">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}</span> ${msg}`;
         log.insertBefore(entry, log.firstChild);
-        if (log.childNodes.length > 5) log.removeChild(log.lastChild);
+        if (log.childNodes.length > 8) log.removeChild(log.lastChild);
     }
-    console.log(`[NET] ${msg}`);
 }
 
 let gameState = {

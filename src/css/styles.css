@@ -573,87 +573,131 @@ button:disabled {
 
 .developer-card {
     position: relative;
-    margin-top: 50px;
-    padding: 2px;
-    border-radius: 16px;
-    overflow: hidden;
-    background: rgba(255, 255, 255, 0.05);
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    margin-top: 60px;
+    padding: 25px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     text-align: center;
+    overflow: hidden;
+    transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.card-border-gradient {
+.developer-card::before {
+    content: '';
     position: absolute;
     top: -50%;
     left: -50%;
     width: 200%;
     height: 200%;
-    background: conic-gradient(
-        from 0deg,
-        transparent 0 340deg,
-        #fbbf24 360deg
-    );
-    animation: rotate 4s linear infinite;
-    z-index: 0;
+    background: radial-gradient(circle, rgba(251, 191, 36, 0.1) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.5s;
 }
 
-@keyframes rotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-.card-content {
-    position: relative;
-    background: #1e1b4b; /* Matches dark-bg */
-    padding: 20px;
-    border-radius: 15px;
-    z-index: 1;
+.developer-card:hover::before {
+    opacity: 1;
 }
 
 .dev-label {
-    font-size: 0.85em;
-    color: rgba(255, 255, 255, 0.6);
-    margin-bottom: 5px;
-    letter-spacing: 1px;
+    font-size: 0.75em;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 4px;
     text-transform: uppercase;
+    margin-bottom: 12px;
 }
 
 .dev-name {
-    font-size: 1.5em;
+    font-size: 1.8em;
     font-weight: 800;
-    background: linear-gradient(90deg, #fbbf24, #f59e0b);
-    -webkit-background-clip: text;
+    color: #fff;
+    letter-spacing: 1px;
+    margin: 0;
+    background: linear-gradient(
+        to right,
+        #fff 20%,
+        #fbbf24 40%,
+        #fbbf24 60%,
+        #fff 80%
+    );
+    background-size: 200% auto;
     background-clip: text;
+    -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    letter-spacing: 2px;
-    margin: 5px 0;
+    animation: shine 3s linear infinite;
+}
+
+@keyframes shine {
+    to { background-position: 200% center; }
 }
 
 .dev-divider {
-    height: 2px;
-    width: 40px;
-    background: rgba(251, 191, 36, 0.3);
-    margin: 10px auto;
-    border-radius: 2px;
+    height: 1px;
+    width: 60px;
+    background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.5), transparent);
+    margin: 15px auto;
 }
 
 .dev-dept {
-    font-size: 0.9em;
-    font-weight: 600;
+    font-size: 0.85em;
+    font-weight: 700;
+    color: var(--primary-color);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    opacity: 0.8;
+}
+
+.network-console {
+    margin-top: 40px;
+    background: rgba(15, 12, 41, 0.6);
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.console-header {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.7em;
     color: var(--primary-color);
     letter-spacing: 3px;
     text-transform: uppercase;
-    opacity: 0.9;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-.developer-card:hover {
-    transform: translateY(-8px) scale(1.02);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 
-                0 0 20px rgba(251, 191, 36, 0.1);
+.console-header::after {
+    content: '';
+    flex-grow: 1;
+    height: 1px;
+    background: rgba(99, 102, 241, 0.2);
 }
 
-.developer-card:hover .card-border-gradient {
-    animation-duration: 2s;
+.net-log {
+    height: 120px;
+    overflow-y: hidden;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.log-line {
+    margin-bottom: 6px;
+    display: flex;
+    gap: 10px;
+    animation: fadeInLog 0.3s ease-out;
+}
+
+.log-time {
+    color: rgba(255, 255, 255, 0.3);
+    min-width: 70px;
+}
+
+@keyframes fadeInLog {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* Scrollbar & Responsive */
