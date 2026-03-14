@@ -1,13 +1,14 @@
-// Initialize GunDB with a wider set of public relays for better global coverage
 const gunRelays = [
     'https://gun-manhattan.herokuapp.com/gun',
-    'https://relay.peer.ooo/gun',
+    'https://gundb.herokuapp.com/gun',
+    'https://gun-relay.phi.is/gun',
     'https://gun-us.herokuapp.com/gun',
-    'https://gun-sjc.herokuapp.com/gun',
-    'https://gun-eu.herokuapp.com/gun',
-    'https://dletta.cloud/gun'
+    'https://gun-eu.herokuapp.com/gun'
 ];
-const gun = Gun(gunRelays);
+const gun = Gun({
+    peers: gunRelays,
+    localStorage: false // Prevents stale data sync issues between tabs
+});
 
 const ODD_NUMBERS = [1, 3, 5, 7, 9];
 const APP_NAMESPACE = 'oddroll_vFinal_SyncFix'; // New namespace for clean start
@@ -30,8 +31,17 @@ let gameState = {
 gun.on('hi', peer => {
     console.log('Peer connected:', peer);
     gameState.connectedToPeers = true;
+    updateConnectionStatus(true);
     addLog('✅ Connected to sync network');
 });
+
+function updateConnectionStatus(connected) {
+    const statusDot = document.getElementById('connectionStatus');
+    if (statusDot) {
+        statusDot.style.background = connected ? '#10b981' : '#ef4444';
+        statusDot.title = connected ? 'Connected to Peers' : 'Disconnected';
+    }
+}
 
 gun.on('bye', peer => {
     console.log('Peer disconnected:', peer);
@@ -146,6 +156,23 @@ function initGame(name, key, isCreator) {
         }
     });
 
+    // Subscribe to gameplay actions (rolls, shots) to sync logs and UI
+    room.get('lastAction').on(action => {
+        if (!action || action.by === gameState.playerId) return;
+        
+        if (action.type === 'roll') {
+            addLog(`${action.name} rolled a ${action.num}: ${action.msg}`);
+            // Briefly show the roll for others
+            if (gameState.currentTurnId === action.by) {
+                diceDisplay.textContent = action.num;
+                diceDisplay.classList.add('rolling');
+                setTimeout(() => diceDisplay.classList.remove('rolling'), 300);
+            }
+        } else if (action.type === 'shot') {
+            addLog(`🔫 ${action.msg}`, true);
+        }
+    });
+
     // Listen for all players in the room
     room.get('players').map().on((pData, pId) => {
         if (!pData || !pData.id) return;
@@ -188,15 +215,20 @@ function updatePlayerInList(p) {
     if (index > -1) gameState.players[index] = { ...gameState.players[index], ...p };
     else gameState.players.push(p);
 
+    // Sort players by join time to ensure consistent turn order across all clients
+    gameState.players.sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
+
     if (gameState.gameStarted) updatePlayersList(gameState.players);
     else updateLobbyPlayers(gameState.players);
 }
 
 function startGameAction() {
     if (!gameState.isRoomCreator) return;
+    if (gameState.players.length < 2) return alert("Waiting for more players...");
+    
     const room = gun.get(APP_NAMESPACE).get('rooms').get(gameState.roomKey);
     room.get('gameStarted').put(true);
-    // Set first player as turn holder
+    // Set first player as turn holder (players are already sorted by joinedAt)
     const firstPlayerId = gameState.players[0].id;
     room.get('currentTurnId').put(firstPlayerId);
 }
@@ -257,6 +289,16 @@ function processRollLocally(num) {
 
         boxRef.put(update);
         addLog(msg);
+
+        // Sync action to other players
+        room.get('lastAction').put({
+            type: 'roll',
+            by: gameState.playerId,
+            name: gameState.playerName,
+            num: num,
+            msg: msg,
+            time: Date.now()
+        });
     });
 }
 
@@ -314,7 +356,16 @@ function performShoot(targetId, num) {
         });
     });
 
-    addLog(`Shot ${targetId}'s box ${num}!`, true);
+    addLog(`Shot ${targetName}'s box ${num}!`, true);
+    
+    // Sync shot action
+    room.get('lastAction').put({
+        type: 'shot',
+        by: gameState.playerId,
+        msg: `${gameState.playerName} shot ${targetName}'s box ${num}!`,
+        time: Date.now()
+    });
+
     hideShootModal();
     shootButton.disabled = true;
 
