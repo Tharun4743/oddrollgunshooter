@@ -1,30 +1,39 @@
+// Ultimate Relay List for 2026 - High uptime peers
 const gunRelays = [
     'https://gun-manhattan.herokuapp.com/gun',
     'https://gun-relay.phi.is/gun',
-    'https://gun-us.herokuapp.com/gun',
     'https://peer.wall.org/gun',
     'https://gun.p2p.report/gun',
-    'https://gun-server.marda.io/gun'
+    'https://gun-server.marda.io/gun',
+    'https://gunjs.herokuapp.com/gun'
 ];
-const APP_NAMESPACE = 'oddroll_global_sync_v5'; 
+const APP_NAMESPACE = 'oddroll_v2026_pro'; 
 
 const gun = Gun({
     peers: gunRelays,
     localStorage: true,
-    radisk: true
+    radisk: true,
+    retry: 500
 });
 
-// Debug Logger for User UI
-function netLog(msg, color = '#a5b4fc') {
+// Advanced Network Diagnostics
+function netLog(msg, type = 'info') {
     const log = document.getElementById('networkLog');
-    if (log) {
-        const entry = document.createElement('div');
-        entry.className = 'log-line';
-        entry.style.color = color;
-        entry.innerHTML = `<span class="log-time">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}</span> ${msg}`;
-        log.insertBefore(entry, log.firstChild);
-        if (log.childNodes.length > 8) log.removeChild(log.lastChild);
-    }
+    if (!log) return;
+    
+    const colors = {
+        info: '#a5b4fc',
+        success: '#10b981',
+        warn: '#fbbf24',
+        error: '#ef4444'
+    };
+    
+    const entry = document.createElement('div');
+    entry.className = 'log-line';
+    entry.style.color = colors[type];
+    entry.innerHTML = `<span class="log-time">${new Date().toLocaleTimeString()}</span> ${msg}`;
+    log.insertBefore(entry, log.firstChild);
+    if (log.childNodes.length > 10) log.removeChild(log.lastChild);
 }
 
 let gameState = {
@@ -41,12 +50,22 @@ let gameState = {
     connectedToPeers: false
 };
 
-// Monitor Peer Connection
+// Peer Monitoring
 gun.on('hi', peer => {
-    console.log('Peer connected:', peer);
     gameState.connectedToPeers = true;
     updateConnectionStatus(true);
-    addLog('✅ Connected to sync network');
+    netLog('✔ Connected to network relay', 'success');
+});
+
+gun.on('bye', peer => {
+    // Check if we still have any peers left
+    setTimeout(() => {
+        if (!Object.keys(gun._.opt.peers).some(p => gun._.opt.peers[p].wire && gun._.opt.peers[p].wire.readyState === 1)) {
+            gameState.connectedToPeers = false;
+            updateConnectionStatus(false);
+            netLog('✖ Relay disconnected - retrying...', 'warn');
+        }
+    }, 2000);
 });
 
 function updateConnectionStatus(connected) {
