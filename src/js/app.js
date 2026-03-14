@@ -1,21 +1,23 @@
-// 2026 Elite Relay Cluster - Using multiple protocols for maximum compatibility
+// 2026 Resilient Relay Cluster - Multi-Protocol Fallback
 const gunRelays = [
     'https://gun-manhattan.herokuapp.com/gun',
+    'https://gun-relay.phi.is/gun',
     'https://peer.wall.org/gun',
     'https://gun.p2p.report/gun',
     'https://gun-us.herokuapp.com/gun',
     'https://gun-eu.herokuapp.com/gun',
-    'https://gun-relay.phi.is/gun',
     'https://gun-server.marda.io/gun',
-    'https://gunjs.herokuapp.com/gun'
+    'https://gunjs.herokuapp.com/gun',
+    'wss://gun-manhattan.herokuapp.com/gun',
+    'wss://peer.wall.org/gun'
 ];
-const APP_NAMESPACE = 'odd_roll_pro_final_v1'; 
+const APP_NAMESPACE = 'oddroll_ultra_v10'; // New clean namespace
 
 const gun = Gun({
     peers: gunRelays,
-    localStorage: false, // Prevents tab conflicts during development
+    localStorage: false,
     radisk: false,
-    retry: 500
+    retry: 1000
 });
 
 // Advanced Network Diagnostics
@@ -31,25 +33,32 @@ function netLog(msg, type = 'info') {
     };
     
     const entry = document.createElement('div');
+    entry.className = 'log-line';
     entry.style.color = colors[type] || '#fff';
-    entry.style.marginBottom = '4px';
-    entry.innerHTML = `<span style="opacity:0.4;font-size:10px;">[${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}]</span> ${msg}`;
+    entry.innerHTML = `<span class="log-time">[${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}]</span> ${msg}`;
     log.insertBefore(entry, log.firstChild);
-    if (log.childNodes.length > 15) log.removeChild(log.lastChild);
+    if (log.childNodes.length > 20) log.removeChild(log.lastChild);
 }
 
-// Global Connection Watchdog
+// Global Connection Watchdog & Auto-Recovery
 let connectionAttempt = 0;
 const connectionCheck = setInterval(() => {
     if (!gameState.connectedToPeers) {
         connectionAttempt++;
+        // Every 10s, try to force a tiny bit of data transfer to "wake up" the mesh
+        gun.get('ping').put({t: Date.now()});
+        
         if (connectionAttempt % 5 === 0) {
-            netLog(`🔄 Still searching for stable relay (Attempt ${connectionAttempt})...`, 'warn');
+            netLog(`🔍 Searching for peers (Attempt ${connectionAttempt})...`, 'warn');
         }
-    } else {
-        clearInterval(connectionCheck);
     }
-}, 2000);
+}, 3000);
+
+// Manual Reconnect Hook for the UI
+function manualReconnect() {
+    netLog('🔄 Manual Reconnect Triggered...', 'info');
+    gun.opt({peers: gunRelays});
+}
 
 let gameState = {
     playerId: Math.random().toString(36).substr(2, 9),

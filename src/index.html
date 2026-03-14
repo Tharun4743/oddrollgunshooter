@@ -75,7 +75,10 @@
 
             <!-- Network Status Console -->
             <div class="network-console">
-                <div class="console-header">NETWORK STATUS</div>
+                <div class="console-header">
+                    <span>NETWORK STATUS</span>
+                    <button onclick="manualReconnect()" class="btn-mini">RECONNECT</button>
+                </div>
                 <div id="networkLog" class="net-log">System Initializing...</div>
             </div>
         </div>
