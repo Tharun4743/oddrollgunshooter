@@ -1,18 +1,16 @@
 const gunRelays = [
-    'https://gun-manhattan.herokuapp.com/gun',
-    'https://gundb.herokuapp.com/gun',
-    'https://gun-relay.phi.is/gun',
-    'https://peer.wall.org/gun',
-    'https://gun-us.herokuapp.com/gun',
-    'https://gun-eu.herokuapp.com/gun'
+    'wss://gun-manhattan.herokuapp.com/gun',
+    'wss://gun-us.herokuapp.com/gun',
+    'wss://gun-eu.herokuapp.com/gun',
+    'wss://peer.wall.org/gun',
+    'https://gun-manhattan.herokuapp.com/gun'
 ];
-// Use a clean namespace to avoid old data collisions
-const APP_NAMESPACE = 'oddroll_pro_v3'; 
+const APP_NAMESPACE = 'odd_v3'; 
 
 const gun = Gun({
     peers: gunRelays,
     localStorage: false,
-    retry: 1000 // Retry every second if connection drops
+    radisk: false // Memory only for faster browser-to-browser sync
 });
 
 let gameState = {
@@ -138,12 +136,18 @@ function initGame(name, key, isCreator) {
 
     const room = gun.get(APP_NAMESPACE).get('rooms').get(key);
 
-    // Heartbeat to keep connection alive and announce presence
+    // Active Discovery Ping to force relays to sync our presence
     setInterval(() => {
-        room.get('players').get(gameState.playerId).get('lastActive').put(Date.now());
-    }, 5000);
+        const now = Date.now();
+        room.get('players').get(gameState.playerId).put({
+            id: gameState.playerId,
+            name: name,
+            lastActive: now,
+            isAlive: true
+        });
+    }, 2000);
 
-    // Join logic
+    // Initial Join Join logic
     const playerRef = room.get('players').get(gameState.playerId);
     playerRef.put({
         id: gameState.playerId,
