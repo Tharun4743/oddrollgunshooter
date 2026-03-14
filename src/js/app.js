@@ -191,6 +191,8 @@ function initGame(name, key, isCreator) {
     // Clear existing players list to prevent duplicates on manual re-entry
     gameState.players = [];
 
+    const room = gun.get(APP_NAMESPACE).get('rooms').get(key);
+
     // Discovery logic check
     netLog(`Room [${key}] searching for players...`);
 
@@ -424,6 +426,8 @@ function hideShootModal() {
 
 function performShoot(targetId, num) {
     const room = gun.get(APP_NAMESPACE).get('rooms').get(gameState.roomKey);
+    const targetPlayer = gameState.players.find(p => p.id === targetId);
+    const targetName = targetPlayer ? targetPlayer.name : "Player";
 
     // Disable target's box
     room.get('players').get(targetId).get('boxes').get(num).put({ disabled: true });
