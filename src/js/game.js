@@ -1,17 +1,30 @@
 const gunRelays = [
-    'wss://gun-manhattan.herokuapp.com/gun',
-    'wss://gun-us.herokuapp.com/gun',
-    'wss://gun-eu.herokuapp.com/gun',
-    'wss://peer.wall.org/gun',
-    'https://gun-manhattan.herokuapp.com/gun'
+    'https://gun-manhattan.herokuapp.com/gun',
+    'https://gun-relay.phi.is/gun',
+    'https://gun-us.herokuapp.com/gun',
+    'https://peer.wall.org/gun',
+    'https://dletta.cloud/gun'
 ];
-const APP_NAMESPACE = 'odd_v3'; 
+const APP_NAMESPACE = 'oddroll_live_v2026'; 
 
 const gun = Gun({
     peers: gunRelays,
-    localStorage: false,
-    radisk: false // Memory only for faster browser-to-browser sync
+    localStorage: true, // Keep peers in memory between refreshes
+    radisk: true
 });
+
+// Debug Logger for User UI
+function netLog(msg, color = '#6366f1') {
+    const log = document.getElementById('networkLog');
+    if (log) {
+        const entry = document.createElement('div');
+        entry.style.color = color;
+        entry.textContent = `> ${new Date().toLocaleTimeString()}: ${msg}`;
+        log.insertBefore(entry, log.firstChild);
+        if (log.childNodes.length > 5) log.removeChild(log.lastChild);
+    }
+    console.log(`[NET] ${msg}`);
+}
 
 let gameState = {
     playerId: Math.random().toString(36).substr(2, 9),
@@ -134,20 +147,10 @@ function initGame(name, key, isCreator) {
     // Clear existing players list to prevent duplicates on manual re-entry
     gameState.players = [];
 
-    const room = gun.get(APP_NAMESPACE).get('rooms').get(key);
+    // Discovery logic check
+    netLog(`Room [${key}] searching for players...`);
 
-    // Active Discovery Ping to force relays to sync our presence
-    setInterval(() => {
-        const now = Date.now();
-        room.get('players').get(gameState.playerId).put({
-            id: gameState.playerId,
-            name: name,
-            lastActive: now,
-            isAlive: true
-        });
-    }, 2000);
-
-    // Initial Join Join logic
+    // Initial Join logic
     const playerRef = room.get('players').get(gameState.playerId);
     playerRef.put({
         id: gameState.playerId,
@@ -155,7 +158,8 @@ function initGame(name, key, isCreator) {
         isAlive: true,
         totalBodyParts: 0,
         mustShoot: false,
-        joinedAt: Date.now()
+        joinedAt: Date.now(),
+        lastActive: Date.now()
     });
 
     // Subscriptions
@@ -163,7 +167,7 @@ function initGame(name, key, isCreator) {
         if (val && !gameState.gameStarted) {
             gameState.gameStarted = true;
             switchScreen('game');
-            addLog('🎮 Game Started!', true);
+            netLog('🎮 Start signal received!', '#10b981');
         }
     });
 
@@ -171,7 +175,10 @@ function initGame(name, key, isCreator) {
     room.get('players').map().on((pData, pId) => {
         if (!pData || !pData.id) return;
         
-        // Cleanup locally if inactive (simple discovery)
+        // Only log discovery once
+        const exists = gameState.players.find(pl => pl.id === pData.id);
+        if (!exists) netLog(`👤 Found player: ${pData.name}`, '#8b5cf6');
+
         updatePlayerInList(pData);
 
         if (pId === gameState.playerId) {
